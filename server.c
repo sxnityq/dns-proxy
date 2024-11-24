@@ -335,22 +335,20 @@ void event_loop(void){
         r_buff[numbytes] = '\0';
         memcpy(&header, r_buff, sizeof(struct dns_header2));
         memset(domain2upstream, '\0', DOMAINLEN);
-
-        printf("l: %li", sizeof(header.generic_flags));
         
         header.QDcount = ntohs(header.QDcount);
         header.ID = ntohs(header.ID);
         header.ANcount = ntohs(header.ANcount);
         header.NScount = ntohs(header.NScount);
         header.ARcount = ntohs(header.ARcount);
-        header.generic_flags.bits = ntohs(header.generic_flags.bits);
+        header.bits = ntohs(header.bits);
         
         printf("RCV flags:\n"
         "QR: %d\nOP: %d\nAA: %d\nTC: %d\nRD: %d\nRA: %d\nZ: %d\nRC: %d\nQdc: %d\nAN: %d",
-        header.generic_flags.bit_flags.QR, header.generic_flags.bit_flags.opcode,
-        header.generic_flags.bit_flags.AA, header.generic_flags.bit_flags.TC,
-        header.generic_flags.bit_flags.RD, header.generic_flags.bit_flags.RA,
-        header.generic_flags.bit_flags.Z, header.generic_flags.bit_flags.Rcode, 
+        header.bits & QR, header.bits & OPCODE,
+        header.bits & AA, header.bits & TC,
+        header.bits & RD, header.bits & RA,
+        header.bits & Z, header.bits & RCODE, 
         header.QDcount, header.ANcount);
 
         get_domain((r_buff + sizeof(struct dns_header2)), domain2upstream, DOMAINLEN);
