@@ -1,0 +1,290 @@
+Messages carried by UDP are restricted to 512 bytes (not counting the IP or UDP headers) 
+Longer messages are truncated and the TC bit is set in the header.
+
+UDP is not acceptable for zone transfers, but is the recommended method
+for standard queries in the Internet
+
+
+MASTER FILES - text files that contain RRs in text form;
+Contents of the zone can be expressed in the form of a list of RRs.
+
+Format of master files contain entries which are predominantly line-oriented
+The following entries are defined:
+    * $ORIGIN <domain-name> [<comment>]
+    * $INCLUDE <file-name> [<domain-name>] [<comment>]
+    * <domain-name><rr> [<comment>]
+    * <blank><rr> [<comment>]
+
+The last two forms represent RRs.  If an entry for an RR begins with a
+blank, then the RR is assumed to be owned by the last stated owner.  If
+an RR entry begins with a <domain-name>, then the owner name is reset.
+
+<rr> contents take one of the following forms:
+    * [<TTL>] [<class>] <type> <RDATA>
+    * [<class>] [<TTL>] <type> <RDATA>
+
+
+Name servers manage two kinds of data.  
+
+ *  The first kind of data held in sets called zones; 
+    each zone is the complete database for a particular
+    "pruned" subtree of the domain space.  This data is called
+    authoritative.  A name server periodically checks to make sure that its
+    zones are up to date, and if not, obtains a new copy of updated zones
+    from master files stored locally or in another name server.
+
+
+inango.com. - inango is a zone file
+
+top.inango.com.        zone file record
+bottom.inango.com.     zone file record
+etc
+
+
+All communications inside of the domain protocol are carried in a single
+format called a message;
+
+MESSAGE format:
+
+    +---------------------+
+    |        Header       |
+    +---------------------+
+    |       Question      | the question for the name server
+    +---------------------+
+    |        Answer       | RRs answering the question
+    +---------------------+
+    |      Authority      | RRs pointing toward an authority
+    +---------------------+
+    |      Additional     | RRs holding additional information
+    +---------------------+
+
+
+The header section is always present
+Header includes fields:
+    * specify which of the remaining sections are present
+    * specify whether the message is a query or a response
+    * If query - standard query or someother opcode etc
+
+Header section format:
+
+                                    1  1  1  1  1  1
+      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                      ID                       |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    QDCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    ANCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    NSCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    ARCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+
+ID      A 16 bit identifier assigned by the program that
+        generates any kind of query.  This identifier is copied
+        the corresponding reply and can be used by the requester
+        to match up replies to outstanding queries.
+
+
+QR      A one bit field that specifies whether this message is a
+        query (0), or a response (1).
+
+
+OPCODE      A four bit field that specifies kind of query in this
+            message.  This value is set by the originator of a query
+            and copied into the response.  The values are:
+                0               a standard query (QUERY)
+
+                1               an inverse query (IQUERY)
+
+                2               a server status request (STATUS)
+
+                3-15            reserved for future use
+
+
+AA      Authoritative Answer - this bit is valid in responses,
+        and specifies that the responding name server is an
+        authority for the domain name in question section.
+
+        Note that the contents of the answer section may have
+        multiple owner names because of aliases.  The AA bit
+        corresponds to the name which matches the query name, or
+        the first owner name in the answer section.
+
+TC      TrunCation - specifies that this message was truncated
+        due to length greater than that permitted on the
+        transmission channel.
+
+RD      Recursion Desired - this bit may be set in a query and
+        is copied into the response.  If RD is set, it directs
+        the name server to pursue the query recursively.
+        Recursive query support is optional.
+
+RA      Recursion Available - this be is set or cleared in a
+        response, and denotes whether recursive query support is
+        available in the name server.
+
+Z       Reserved for future use.  Must be zero in all queries
+        and responses.
+
+
+QDCOUNT         * an unsigned 16 bit integer specifying the number of
+                entries in the question section.
+
+ANCOUNT         * an unsigned 16 bit integer specifying the number of               // HOW MANY RRs IN ANSWER SECTION
+                resource records in the answer section.
+
+NSCOUNT         * an unsigned 16 bit integer specifying the number of name          // HOW MANY RRs IN AUTHORITY SECTION
+                server resource records in the authority records
+                section.
+
+ARCOUNT         * an unsigned 16 bit integer specifying the number of               // HOW MANY RRs IN ADDITIONAL SECTION
+                resource records in the additional records section.
+
+
+QUESTION SECTION FORMAT:
+
+The question section is used to carry the "question" in most queries,
+i.e., the parameters that define what is being asked.  The section
+contains QDCOUNT (usually 1) entries, each of the following format:
+
+                                    1  1  1  1  1  1
+      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                                               |
+    /                     QNAME                     /
+    /                                               /
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                     QTYPE                     |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                     QCLASS                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+where:
+
+QNAME           a domain name represented as a sequence of labels, where       // domain to query
+                each label consists of a length octet followed by that
+                number of octets.  The domain name terminates with the
+                zero length octet for the null label of the root.  Note
+                that this field may be an odd number of octets; no
+                padding is used.
+
+QTYPE           a two octet code which specifies the type of the query.     // type of query (A, MX, TXT, etc.)
+                The values for this field include all codes valid for a
+                TYPE field, together with some more general codes which
+                can match more than one type of RR.
+
+QCLASS          a two octet code that specifies the class of the query.     // IN in 99.99% cases. Lets assume it is always IN
+                For example, the QCLASS field is IN for the Internet.
+
+
+
+RESOURCE RECORD FORMAT
+
+The answer, authority, and additional sections all share the same
+format: a variable number of resource records, where the number of
+records is specified in the corresponding count field in the header.
+Each resource record has the following format:
+
+
+                                    1  1  1  1  1  1
+      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                                               |
+    /                                               /
+    /                      NAME                     /
+    |                                               |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                      TYPE                     |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                     CLASS                     |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                      TTL                      |
+    |                                               |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                   RDLENGTH                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
+    /                     RDATA                     /
+    /                                               /
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+
+where:
+
+NAME            a domain name to which this resource record pertains.       //  which domain to resolve/answer
+
+TYPE            two octets containing one of the RR type codes.  This       //  which type is assigned to domain above
+                field specifies the meaning of the data in the RDATA
+                field.
+
+CLASS           two octets which specify the class of the data in the       //  what class does it have
+                RDATA field.
+
+TTL             a 32 bit unsigned integer that specifies the time           //  Specify for cache name server how long to cache
+                interval (in seconds) that the resource record may be
+                cached before it should be discarded.  Zero values are
+                interpreted to mean that the RR can only be used for the
+                transaction in progress, and should not be cached.
+
+RDLENGTH        an unsigned 16 bit integer that specifies the length in     // How many chars in RDATA
+                octets of the RDATA field.
+
+RDATA           a variable length string of octets that describes the       // actual resolve/answer result   
+                resource.  The format of this information varies
+                according to the TYPE and CLASS of the resource record.
+                For example, the if the TYPE is A and the CLASS is IN,
+                the RDATA field is a 4 octet ARPA Internet address.
+
+UDP MESSAGES:
+
+* Messages carried by UDP are restricted to 512 bytes (not counting the IP
+or UDP headers).  Longer messages are truncated and the TC bit is set in
+the header
+
+UDP is not acceptable for zone transfers, but is the recommended method
+for standard queries in the Internet
+
+
+
+
+
+
+
+
+
+
+if (listen(sockfd, BACKLOG) != 0){
+        return -1;
+    }
+
+    printf("listeting...\n");
+
+    their_addr_size = sizeof(their_sockaddr);
+    rcv_sockaddr_size = sizeof(struct sockaddr_storage);
+
+    while(1) {
+
+        newfd = accept(sockfd, (struct sockaddr_in *)&their_sockaddr, &their_addr_size);
+
+        if (newfd == -1) {
+            perror("accept");
+            continue;
+        }
+        
+        inet_ntop(their_sockaddr.ss_family, get_in_addr((struct sockaddr *)&their_sockaddr), s, sizeof s);
+        printf("server: got connection from %s\n", s);
+        
+        if (!fork()) { 
+            close(sockfd);
+            if (sendto(newfd, "Hello, world!", 13, 0) == -1){
+                perror("send");
+            }
+            close(newfd);
+        exit(0);
+        }
+        close(newfd); // parent doesn't need this
+    }
