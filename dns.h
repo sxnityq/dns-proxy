@@ -1,14 +1,27 @@
 #include <stdint.h>
 
-/* new dns_headers flags format because i really hard fucked up with struct bit fields */
-#define QR      0x8000
-#define OPCODE  0x7800
-#define AA      0x400
-#define TC      0x200
-#define RD      0x100
-#define RA      0x80
-#define Z       0x70
-#define RCODE   0xF
+
+/*
+new dns_headers flags format because i really hard fucked up with struct bit fields 
+
+
+  CHECK DESCRIPTION BELOW!1!!
+                                  1  1  1  1  1  1
+    0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
++--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+|RA|   Z    |   RCODE   |QR|   Opcode  |AA|TC|RD|
++--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+*/
+
+#define RA      0x8000
+#define Z       0x7000
+#define RCODE   0xF00
+#define QR      0x80
+#define OPCODE  0x78
+#define AA      0x4
+#define TC      0x2
+#define RD      0x1
 
 
 /* 

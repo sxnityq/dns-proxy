@@ -345,10 +345,10 @@ void event_loop(void){
         
         printf("RCV flags:\n"
         "QR: %d\nOP: %d\nAA: %d\nTC: %d\nRD: %d\nRA: %d\nZ: %d\nRC: %d\nQdc: %d\nAN: %d",
-        (header.bits & QR) >> 15, (header.bits & OPCODE) >> 14,
-        (header.bits & AA) >> 10, (header.bits & TC) >> 9,
-        (header.bits & RD) >> 8, (header.bits & RA) >> 7,
-        (header.bits & Z) >> 4, header.bits & RCODE, 
+        (header.bits & QR) >> 7, (header.bits & OPCODE) >> 6,
+        (header.bits & AA) >> 2, (header.bits & TC) >> 1,
+        (header.bits & RD), (header.bits & RA) >> 15,
+        (header.bits & Z) >> 14, (header.bits & RCODE) >> 11, 
         header.QDcount, header.ANcount);
 
         get_domain((r_buff + sizeof(struct dns_header2)), domain2upstream, DOMAINLEN);
