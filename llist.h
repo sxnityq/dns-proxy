@@ -110,5 +110,6 @@ uint16_t manage_queue_by_existence(uint16_t check_datagram_id,
     p->next = (struct domain_q *) malloc(sizeof(struct domain_q));
     p->next->next = NULL;
     p->next->datagram_id = check_datagram_id;
+    memcpy(&(p->next->sa), sa, sizeof(struct sockaddr));
     return 0;
 }

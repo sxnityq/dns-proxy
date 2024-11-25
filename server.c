@@ -54,6 +54,7 @@ void event_loop(void);
  *  0 - IS NOT blacklisted
  */
 int is_blacklisted(char *d1);
+int build_bl_response(char *buf, struct dns_header2 *og_header);
 
 
 /* 
@@ -262,6 +263,28 @@ int parse_config(char *path){
     return 0;
 }
 
+int build_bl_response(char *buf, struct dns_header2 *og_header){
+    struct dns_header2 header;
+
+    // REFUSED is 5. SO RCODE = 0101
+
+    unsigned short int rc_flg = 5; //0x101
+    unsigned short int bits = 0xFFFF;
+
+    bits  = ((bits << 4) & og_header->bits) & rc_flg;   // set RCODE to 5 (refused)
+    bits = bits | 0x8000;                               // masrk as a response
+    header.bits = htons(bits);
+    header.ANcount = 0;
+    header.ARcount = 0;
+    header.NScount = 0;
+    header.QDcount = 0;
+    header.ID = htons(og_header->ID);
+    memcpy(buf, &header, sizeof(struct dns_header2));
+
+    return sizeof(struct dns_header2);
+
+}
+
 
 int init_connection(void){
 
@@ -294,7 +317,7 @@ void event_loop(void){
     struct sockaddr_in their_sockaddr, fill_sa, rcv_sa;
     socklen_t their_addr_size, rcv_sa_size, send_sockaddr_size;
     char r_buff[READBUFFLEN], rcv_buff[READBUFFLEN];
-    int numbytes, sendbytes, rcvbytes;
+    int numbytes, sendbytes, rcvbytes, bl_response;
     struct dns_header2 header, rcv_header;
     
     rcv_sa_size = sizeof(struct sockaddr_in);
@@ -307,6 +330,7 @@ void event_loop(void){
 
 
     char ipv4[32];
+    char bl_buff[READBUFFLEN];
 
 
     upstream_sa.sin_port = htons(PORT);
@@ -328,35 +352,39 @@ void event_loop(void){
             exit(-1);
         }
 
-        printf("=======================\n"
-               "+ RCV BYTES: %d +\n"
-               "=======================\n", numbytes);
         
         r_buff[numbytes] = '\0';
         memcpy(&header, r_buff, sizeof(struct dns_header2));
         memset(domain2upstream, '\0', DOMAINLEN);
         
+        get_domain((r_buff + sizeof(struct dns_header2)), domain2upstream, DOMAINLEN);
+
         header.QDcount = ntohs(header.QDcount);
         header.ID = ntohs(header.ID);
         header.ANcount = ntohs(header.ANcount);
         header.NScount = ntohs(header.NScount);
         header.ARcount = ntohs(header.ARcount);
-        //header.bits = ntohs(header.bits);
+        header.bits = ntohs(header.bits);
         
-        printf("RCV flags:\n"
-        "QR: %d\nOP: %d\nAA: %d\nTC: %d\nRD: %d\nRA: %d\nZ: %d\nRC: %d\nQdc: %d\nAN: %d",
-        (header.bits & QR) >> 7, (header.bits & OPCODE) >> 6,
-        (header.bits & AA) >> 2, (header.bits & TC) >> 1,
-        (header.bits & RD), (header.bits & RA) >> 15,
-        (header.bits & Z) >> 14, (header.bits & RCODE) >> 11, 
-        header.QDcount, header.ANcount);
-
-        get_domain((r_buff + sizeof(struct dns_header2)), domain2upstream, DOMAINLEN);
+        if (is_blacklisted(domain2upstream) != 0){
+            memset(bl_buff, '\0', READBUFFLEN);
+            bl_response =  build_bl_response(bl_buff, &header);
+            sendto(sockfd, bl_buff, bl_response, 0, (struct sockaddr *)&fill_sa, sizeof(struct sockaddr));
+            printf("BLACKLISTED. GIVE IT BACK\n");
+            continue;
+        }
         
-        if (check_domain(domain2upstream) != 0){
-            printf("domain invalid\n");
-            exit(-1);
-        }  
+        printf("=======================\n"
+               "+ RCV BYTES: %d +\n"
+               "=======================\n", numbytes);
+        
+        printf("***** RCV FLAGS *****\n"
+        "QR: %d OP: %d AA: %d TC: %d\n" 
+        "RD: %d RA: %d Z:  %d RC: %d\n",
+        (header.bits & QR) >> 15, (header.bits & OPCODE) >> 11,
+        (header.bits & AA) >> 10, (header.bits & TC) >> 9,
+        (header.bits & RD) >> 8, (header.bits & RA) >> 7,
+        (header.bits & Z) >> 4, header.bits & RCODE);
         
         printf("***** ID: %i *****\n", header.ID);
         printf("+ domain: %s\n", domain2upstream);
@@ -372,14 +400,15 @@ void event_loop(void){
              send_sockaddr_size);
         } else {
             printf("***** RESPONSE FOR: %d *****\n", res);
-            printf("+ send back to: %s\n", inet_ntop(AF_INET,  &(rcv_sa.sin_addr), ipv4, sizeof(struct sockaddr)));
+            printf("+ send back to: %s\n", inet_ntop(AF_INET,  
+                &(rcv_sa.sin_addr), ipv4, sizeof(struct sockaddr)));
             printf("+ send back to: %i\n", ntohs(rcv_sa.sin_port));
+            
             sendbytes = sendto(sockfd, r_buff, numbytes, 0, (struct sockaddr *)&rcv_sa,
                 rcv_sa_size);
         }
         printf("========================\n\n");
     }
-    
     close(sockfd);
 }
 
