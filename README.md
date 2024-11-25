@@ -26,9 +26,11 @@ blacklist - containes blacklisted domains. Currently the max amount is 16
 type - format for response if domain is blacklisted (CURRENTLY NOT IMPLEMENTED)
 
 EXAMPLE:
+```
 master:  8.8.8.8 
-blacklist: www.youtube.com pornhub.com 
+blacklist: www.youtube.com pornhub.com genshin.hoyoverse.com
 type:   
+```
 
 ## HOW TO TEST!
 ```
