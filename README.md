@@ -27,7 +27,7 @@ type - format for response if domain is blacklisted (CURRENTLY NOT IMPLEMENTED)
 
 EXAMPLE:
 master:  8.8.8.8 
-blacklist: www.youtube.com. pornhub.com 
+blacklist: www.youtube.com pornhub.com 
 type:   
 
 ## HOW TO TEST!
