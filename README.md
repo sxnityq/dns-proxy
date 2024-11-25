@@ -34,6 +34,7 @@ type:
 
 ## HOW TO TEST!
 ```
+make server
 ./server
 echo "nameserver 127.0.0.1" > /etc/resolv.conf
 chattr +i /etc/resolv.conf
