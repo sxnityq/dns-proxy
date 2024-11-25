@@ -341,14 +341,14 @@ void event_loop(void){
         header.ANcount = ntohs(header.ANcount);
         header.NScount = ntohs(header.NScount);
         header.ARcount = ntohs(header.ARcount);
-        header.bits = ntohs(header.bits);
+        //header.bits = ntohs(header.bits);
         
         printf("RCV flags:\n"
         "QR: %d\nOP: %d\nAA: %d\nTC: %d\nRD: %d\nRA: %d\nZ: %d\nRC: %d\nQdc: %d\nAN: %d",
-        header.bits & QR, header.bits & OPCODE,
-        header.bits & AA, header.bits & TC,
-        header.bits & RD, header.bits & RA,
-        header.bits & Z, header.bits & RCODE, 
+        (header.bits & QR) >> 15, (header.bits & OPCODE) >> 14,
+        (header.bits & AA) >> 10, (header.bits & TC) >> 9,
+        (header.bits & RD) >> 8, (header.bits & RA) >> 7,
+        (header.bits & Z) >> 4, header.bits & RCODE, 
         header.QDcount, header.ANcount);
 
         get_domain((r_buff + sizeof(struct dns_header2)), domain2upstream, DOMAINLEN);
@@ -362,18 +362,12 @@ void event_loop(void){
         printf("+ domain: %s\n", domain2upstream);
         printf("+ sender ip: %s\n", inet_ntop(AF_INET,  &(fill_sa.sin_addr), ipv4, sizeof(struct sockaddr)));
         printf("+ sender port: %i\n", ntohs(fill_sa.sin_port));
-        /* printf("RCV flags:\n"
-        "QR: %i\nOP: %i\nAA: %i\nTC: %i\nRD: %i\nRA: %i\nZ: %i\nRC: %i\nQdc: %i\n",
-        header.generic_flags.bit_flags.QR, header.generic_flags.bit_flags.opcode,
-        header.generic_flags.bit_flags.AA, header.generic_flags.bit_flags.TC,
-        header.generic_flags.bit_flags.RD, header.generic_flags.bit_flags.RA,
-        header.generic_flags.bit_flags.Z, header.generic_flags.bit_flags.Rcode, header.QDcount); */
 
         res = manage_queue_by_existence(header.ID, (struct sockaddr *)&fill_sa, 
                 (struct sockaddr *)&rcv_sa);
 
         if (res == 0){
-            printf("***** REUEST... *****\n");
+            printf("***** REQUEST... *****\n");
             sendbytes = sendto(sockfd, r_buff, numbytes, 0, (struct sockaddr *)&upstream_sa,
              send_sockaddr_size);
         } else {
