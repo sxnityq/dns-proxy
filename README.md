@@ -7,13 +7,14 @@
 3) config file is hardcoded with path and name to config.ingo !!!!!!!
 
 ## QUICK INTROSUCTION
+```
 ├── server - main file  
 ├── collors - shimer and shine shit. nothing special
 ├── llist -  functions for manage udp order
 ├── dns.h - contains some basic dns related struct
 ├── tools.h - assist functions like validate ipv4\domain etc
 └── theory.txt - just my notes. Nothung special
-
+```
 
 ## ABOUT CONFIG FILE
 
