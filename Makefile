@@ -1,9 +1,10 @@
-server: server.o
-	gcc server.o -o server
+CC := gcc
+SRC_DIR := src/
+PARSER_DIR := src/parser
 
-server.o: server.c
-	gcc -c server.c -o server.o
+all:
+	$(CC) -o main $(SRC_DIR)/tools.c $(PARSER_DIR)/io.c $(PARSER_DIR)/lexer.c $(PARSER_DIR)/parser.c $(SRC_DIR)/llist.c $(SRC_DIR)/main.c
 
 .PHONY: clean
 clean:
-	rm -f server && rm -f server.o
+	rm *.o

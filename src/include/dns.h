@@ -1,6 +1,5 @@
 #include <stdint.h>
 
-
 #define QR      0x8000
 #define OPCODE  0x7800
 #define AA      0x400

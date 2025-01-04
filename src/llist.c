@@ -4,15 +4,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string.h>
 
-struct domain_q{
-    struct sockaddr sa;
-    uint16_t        datagram_id;
-    struct domain_q *next;
-};
+#include "include/llist.h"
 
 struct domain_q *queue_head;
-
 
 void init_q_head(void){
     queue_head = NULL;

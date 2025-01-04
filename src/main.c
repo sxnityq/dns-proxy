@@ -1,23 +1,23 @@
-#include "server.h"
-#include "collors.h"
-#include "tools.c"
-#include "dns.h"
-#include "llist.h"
+#include "include/colors.h"
+#include "include/cfg_types.h"
+#include "include/llist.h"
+#include "include/args.h"
+#include "include/dns.h"
+#include "include/tools.h"
+
+#include "parser/include/io.h"
+#include "parser/include/parser.h"
+
 
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <stdio.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-
-#ifndef __server_defined
-#include <stdio.h>
-#include <fcntl.h>
-#endif
 
 
 #define IN      1
@@ -25,25 +25,18 @@
 
 #define PORT            53
 #define PROT            "UDP"
-#define BACKLOG         5
 #define READBUFFLEN     512
 
 
-struct bl BLACKLISTED;
-char *S_TYPE;
-int LINE;
-struct master_ipv4 MASTER_IPV4;
+Master          Master_arg;
+BlackList       BlackList_arg;
+ResponseType    Respose_arg;
+
 
 struct sockaddr_in bind_addrinfo;
 int sockfd;
 
 
-
-int execute_command(struct option *opt);
-
-int master_handler(struct option *opt);
-int blacklist_handler(struct option *opt);
-int type_handler(struct option *opt);
 
 /* on success return socket file descriptor */
 int init_connection(void);
@@ -54,7 +47,6 @@ void event_loop(void);
  *  0 - IS NOT blacklisted
  */
 int is_blacklisted(char *d1);
-int build_bl_response(char *buf, struct dns_header2 *og_header);
 
 
 /* 
@@ -67,201 +59,6 @@ The configuration file contains the following parameters:
 
 */
 
-
-int master_handler(struct option *opt){
-    if (opt->argc != 1){
-        printf("%s", "bro...I only suppoert one master dns. sry\n");
-        return -1;
-    }
-
-    int res;
-    
-    /* if okay fill MASTER_IPV4 */
-    res = check_ipv4(opt->argv[0], &MASTER_IPV4);
-    
-    if (res != 0){
-        printf("%s", "Invalid addr. Perhaps u misstype?\n");
-        return -1;
-    }
-    printf("Master DNS ip: %s\n", opt->argv[0]);
-    return 0;
-}
-
-
-int blacklist_handler(struct option *opt){
-    if (opt->argc < 1){
-        printf("%s", "I dont have blacklisted domains\n");
-        return -1;
-    }
-
-    BLACKLISTED.domains = malloc(sizeof(char *) * ARGV_CHUNK);
-    
-
-    int res, walker;
-
-    for (walker = 0; walker < opt->argc; walker++){
-        res = check_domain(opt->argv[walker]);
-
-        if (res != 0){
-            printf("%sinvalid domain: %s\t LINE: %d%s\n", 
-            RED, opt->argv[walker], LINE, ENDCOLOR);
-            return -1;
-        } else {
-            BLACKLISTED.domains[walker] = opt->argv[walker];
-            printf("domain #%d: %s\n", walker, opt->argv[walker]);
-        }
-    }
-    BLACKLISTED.domainc = walker;
-    return 0;
-}
-
-
-struct option fget_command(FILE *fp){
-    
-    char sym[1];
-    char *tp;
-
-    struct option tmp_option;
-
-    tmp_option.command  = calloc(TOKENLEN, 1);
-    tmp_option.command[0] = '\0';   // to handle situations with white space lines 
-    tmp_option.argv     = calloc(sizeof(char*) * ARGV_CHUNK, 1);
-    tmp_option.is_eof   = 0;
-    tmp_option.argc     = 0;
-
-    int i;
-
-    for (i = 0, tp = tmp_option.command; i < TOKENLEN; tp++){
-        
-        fread(sym, 1, 1, fp);
-        
-        if (feof(fp)){
-            tmp_option.is_eof = 1;
-            return tmp_option;
-        }
-
-        if (*sym == '\n' || *sym == '\0'){
-            if (*sym == '\n'){
-                LINE++;
-            }
-
-            return tmp_option;
-        }
-
-        if (*sym == ' ' || *sym == '\t'){
-            continue;
-        }
-
-        if (*sym == ':'){
-            break;
-        }
-        *tp = *sym;
-        i++;
-    }
-
-    char *buf       = calloc(1, sizeof(char) * TOKENLEN);
-    int flg         = OUT;
-    int bufi        = 0;
-    int argv_wlkr   = 0;
-
-    while (1){
-
-        fread(sym, 1, 1, fp);
-    
-        /* if eof or end of line -> return */
-        if (feof(fp) || *sym == '\n' || *sym == '\0'){
-            tmp_option.argc = argv_wlkr;
-            if (flg == IN){
-                tmp_option.argv[argv_wlkr] = malloc(sizeof(char) * bufi + 1);
-                strncpy(tmp_option.argv[argv_wlkr], buf, bufi + 1);
-                tmp_option.argc++;
-            }
-            if (feof(fp)){
-                tmp_option.is_eof = 1;
-            }
-
-            if (*sym == '\n'){
-                LINE++;
-            }
-
-            return tmp_option;
-        }
-        
-        /* pars argv and copy them to struct option.argv[index] */
-        if (flg == OUT){
-            if (*sym == ' ' || *sym == '\t'){
-                continue;
-            }
-            flg = IN;
-            buf[bufi] = *sym;
-        } else {
-            if (*sym == ' ' || *sym == '\t'){
-                
-                bufi++;
-                buf[bufi] = '\0'; // to finish argv as null-terminated strings
-                tmp_option.argv[argv_wlkr] = malloc(sizeof(char) * bufi + 1);
-                
-                strncpy(tmp_option.argv[argv_wlkr], buf, bufi + 1);
-                memset(buf, '\0', sizeof(char) * TOKENLEN);
-                
-                bufi = 0, argv_wlkr++;
-                flg = OUT;
-            } else {
-                bufi++;
-                buf[bufi] = *sym;
-            }
-        }
-    }
-}
-
-
-int execute_command(struct option *opt){
-
-    if (opt->command[0] == '\0'){
-        return 0;
-    }
-    if (strncmp(opt->command, "master", TOKENLEN) == 0){
-        return master_handler(opt);
-    }
-    if (strncmp(opt->command, "blacklist", TOKENLEN) == 0){
-        return blacklist_handler(opt);
-    }
-    if (strncmp(opt->command, "type", TOKENLEN) == 0){
-        printf("type handler\n");
-        return 0;
-    }
-    printf("%sunknown commmand: %s LINE: %d%s\n", RED, opt->command, LINE, ENDCOLOR);
-    return -1;
-}
-
-
-int parse_config(char *path){
-    
-    FILE *fp;
-    int res;
-    struct option opt;
-
-    fp = fopen(path, "r");
-
-    if (fp == NULL){
-        printf("File does not exist\n");
-        return -1;
-    }
-    
-    while(1){
-        opt = fget_command(fp);
-        res = execute_command(&opt);
-        if (res != 0){
-            printf("%sError occured. Aborted%s\n", RED, ENDCOLOR);
-            return -1;
-        }
-        if (opt.is_eof == 1){
-            break;
-        }
-    }
-    fclose(fp);
-    return 0;
-}
 
 int build_bl_response(char *buf, struct dns_header2 *og_header){
     struct dns_header2 header;
@@ -325,7 +122,7 @@ void event_loop(void){
     send_sockaddr_size = rcv_sa_size;
 
     struct sockaddr_in upstream_sa;
-    char domain2upstream[DOMAINLEN];
+    char domain2upstream[FQDN_MAXLEN];
     uint16_t res;
 
 
@@ -335,7 +132,7 @@ void event_loop(void){
 
     upstream_sa.sin_port = htons(PORT);
     upstream_sa.sin_family = AF_INET;
-    upstream_sa.sin_addr.s_addr = htonl(MASTER_IPV4.ipv4);
+    upstream_sa.sin_addr.s_addr = htonl(Master_arg.ipv4.ipv4);
 
     while(1){
         memset(r_buff, '\0', READBUFFLEN);
@@ -355,9 +152,9 @@ void event_loop(void){
         
         r_buff[numbytes] = '\0';
         memcpy(&header, r_buff, sizeof(struct dns_header2));
-        memset(domain2upstream, '\0', DOMAINLEN);
+        memset(domain2upstream, '\0', FQDN_MAXLEN);
         
-        get_domain((r_buff + sizeof(struct dns_header2)), domain2upstream, DOMAINLEN);
+        get_domain((r_buff + sizeof(struct dns_header2)), domain2upstream, FQDN_MAXLEN);
 
         header.QDcount = ntohs(header.QDcount);
         header.ID = ntohs(header.ID);
@@ -463,10 +260,10 @@ int compair_domains(char *d1, char *d2){
 
 
 int is_blacklisted(char *d1){
-    int walker;
-    for (walker = 0; walker < BLACKLISTED.domainc; walker++){
-        
-        if (compair_domains(d1, BLACKLISTED.domains[walker]) == 0){
+    BlackList *p;
+
+    for (p = &BlackList_arg; p->next != NULL; p = p->next){
+        if (compair_domains(d1, p->domain.domain_lexeme) == 0){
             return 1; //is blacklisted
         }
     }
@@ -474,11 +271,12 @@ int is_blacklisted(char *d1){
 }
 
 
-int main(int argc, char *argv[]){
-    if (parse_config("config.ingo") != 0){
-        exit(1);
-    }
+int main(int argc, char *argv[]){    
 
+    inpfile = open_newfile("config.txt");
+    
+    main_parser();
+    
     init_q_head();      // queue_head = NULL;
     sockfd = init_connection();
     if (sockfd < 0){

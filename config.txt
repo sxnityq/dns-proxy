@@ -1,0 +1,2 @@
+MASTER: 8.8.8.8
+BAN: [ temu.com. genshin.hoyoverse.com. ]
