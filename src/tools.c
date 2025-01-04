@@ -57,7 +57,6 @@ int check_ipv4(char *ipv4){
         }
 
         if (listed_octets == 4){
-            printf("yo: %d\n", *p);
             if (*p == '\0'){
                 return 1;
             }

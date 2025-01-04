@@ -11,10 +11,12 @@
 SYNTAX: 
 
 MASTER: ipv4 \n
+
 BAN: [ domain1 domain2 ... domainN ] \n
 
 
 master - set dns upstream server
+
 blacklist - containes blacklisted domains. Currently the max amount is 16
 
 !TODO type - format for response if domain is blacklisted (CURRENTLY NOT IMPLEMENTED)
