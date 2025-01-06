@@ -38,8 +38,8 @@ ping arestovich.com
 ```
 
 ## TODO
-1) implement type option
-2) fix hardcoded max number of argv
-3) fix hardcoded code. Especially with ipv4\ipv6
-4) adequate error messages
-5) tolerant behaviour with long lexemes
+1) tolerant behaviour with long lexemes
+2) implement type option
+3) ADD ipv6 support
+4) systemd-unit
+5) AUR package
