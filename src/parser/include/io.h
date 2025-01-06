@@ -14,6 +14,7 @@ extern int inpfile;
 
 unsigned char *get_clexeme();
 unsigned char *get_plexeme();
+unsigned char *get_forward();
 
 int get_clexeme_len();
 int get_plexeme_len();
@@ -32,6 +33,8 @@ void retract_lexeme();
 void discard_lexeme();
 
 unsigned int get_lineno();
+unsigned int get_colno();
+
 int was_eoi_f();
 int open_newfile(char *);
 

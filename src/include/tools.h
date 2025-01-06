@@ -11,6 +11,7 @@ int check_ipv4(char *);
 
 /* converts ipv4 in string format like "127.0.0.1" to int */
 int src_ipv4to_int(char *);
+void int_ipv4to_src(unsigned long, unsigned char *);
 
 /* 
  *  0 - IF VALID

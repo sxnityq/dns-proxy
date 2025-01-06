@@ -36,9 +36,13 @@
 #define ERR_PRINTF(ttype, lexeme, reason) printf("%s%s < %s > = < %s > AT LINE %d%s\n", \
         RED, reason, get_human_ttype(ttype), lexeme, get_lineno(), ENDCOLOR)
 
+#define INVALID_TOKEN(ttype) printf("%sINVALID TOKEN: <%s>  COLUMN: %d LINE: %d %s\n", RED, \
+    get_human_ttype(ttype), get_colno(), get_lineno(), ENDCOLOR);
+
+
 #define get_ttypes_count() NUMBER_OF_TYPES
 
-#define DEBUG   1
+#define DEBUG   0
 #define MAX_DOMAIN_LEN  255
 
 #define T_ERROR     0       /* return if error occured during token recognition */
@@ -104,7 +108,7 @@ void create_token(int);
 void strip_io();
 
 /* iterates through input buffer until it finds independent tokens and marks invalid token as error token */
-void look_error(int);
+void look_error();
 /* Look for valid ipv4 token */
 int look_ipv4();
 int look_string();

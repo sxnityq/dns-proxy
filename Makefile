@@ -1,5 +1,5 @@
 CC := gcc
-SRC_DIR := src/
+SRC_DIR := src
 PARSER_DIR := src/parser
 
 all:

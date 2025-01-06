@@ -134,6 +134,21 @@ int src_ipv4to_int(char *ipv4){
     return -1;
 }
 
+
+void int_ipv4to_src(unsigned long ipv4, unsigned char *dst)
+{
+
+    /* 255 == 256 - 1 == 2^8 - 1 == 1111111111 */
+    sprintf(dst, "%u.%u.%u.%u", 
+        ipv4 & 255,
+        ipv4 >> 8 & 255,
+        ipv4 >> 16 & 255,
+        ipv4 >> 24 & 255 // because 2s-complement systems
+
+    );
+}
+
+
 /* 
  *  0 - IF VALID
  *  FQDN only with(out) trailing dot  
@@ -174,3 +189,4 @@ int check_domain(char *domain){
     }
     return 0;
 }
+

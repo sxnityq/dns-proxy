@@ -104,25 +104,14 @@ void strip_io()
 }
 
 /* iterates through input buffer until it finds independent tokens and marks invalid token as error token */
-void look_error(int force)
+void look_error()
 {
-    if (!force){
-        create_token(ERR);
-        return strip_io();
-    }
-    
     unsigned char c;
-    
+
     while (1){
         c = advance(0);
-        
-        if (c == OOM){
-            create_token(ERR);
-            return strip_io();
-        }
         if (is_independent(c)){
-            retract();
-            return create_token(ERR);
+            return;
         }
     }
 }
@@ -200,10 +189,6 @@ int look_string()
 
     while (1){
         c = advance(0);
-        
-        if (c == OOM){
-            return T_OVERFLOW;
-        }
 
         if (c == EOI){
             return T_ERROR;
@@ -222,10 +207,6 @@ int look_id()
 
     while(1){
         c = advance(0);
-
-        if (c == OOM){
-            return T_OVERFLOW;
-        }
 
         if (is_independent(c)){
             return T_OK;         
@@ -322,6 +303,7 @@ void get_token()
             }
             if (c == ':'){
                 state = 3;
+               
                 break;
             }
             if (isdigit(c)){
@@ -347,6 +329,11 @@ void get_token()
                 break;
             }
 
+            if (c == EOI){
+                state = 12;
+                break;
+            }
+
             state = 99;
             break;
         
@@ -367,8 +354,11 @@ void get_token()
             retract();
             if (!look_ipv4()){
                 retract();
-                look_error(0);
-                return get_token();
+                INVALID_TOKEN(IPV4);
+                look_error();
+                retract();
+
+                return create_token(ERR);
             }
             retract();
             return create_token(IPV4);
@@ -381,38 +371,33 @@ void get_token()
                 return create_token(STRING);
             }
 
-            if (look_result == T_ERROR || T_OVERFLOW){
+            if (look_result == T_ERROR){
+                INVALID_TOKEN(STRING);
                 retract();
-                look_error(1);
-                return get_token();
+                look_error();
+                return create_token(ERR);
             }
 
         /*  look for identifiers. If no match switch to lookinf for domains */
         case 6:
             retract();
-            look_result = look_id();
-            
-            if (look_result == T_OK){
-                retract();
-                return create_token(ID);
+            if (!look_id()){
+                retract_lexeme();
+                state = 7;
+                break; 
             }
-
-            if (look_result == T_OVERFLOW){
-                create_token(ID);
-                return strip_io();
-            }
-
-            retract_lexeme();
-            state = 7;
-            break; 
+            retract();
+            return create_token(ID);            
 
 
         /* look for domain */
         case 7:
             if (!look_domain()){
+                INVALID_TOKEN(DOMAIN);
                 retract();
-                look_error(0);
-                return get_token();
+                look_error();
+                retract();
+                return create_token(ERR);
             }
 
             retract();
@@ -431,9 +416,13 @@ void get_token()
         case 11:
             return create_token(NL);
         
+        case 12:
+            return create_token(TEOI);
+
         case 99:
-            look_error(0);
-            return get_token();
+            look_error();
+            retract();
+            return create_token(ERR);
         }
     }
 }

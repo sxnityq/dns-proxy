@@ -10,6 +10,8 @@
 
 
 static unsigned int lineno  = 1;
+static unsigned int colno   = 1;
+static unsigned int pcolno  = 1;
 
 /* how much lines occupies current lexeme. It is needed when playing with retracted */
 static unsigned int clexeme_lines   = 0;
@@ -35,13 +37,20 @@ unsigned int get_lineno()
     return lineno;
 }
 
+unsigned int get_colno()
+{
+    return colno;
+}
 
 unsigned char *get_plexeme()
 {
     return plexeme;
 }
 
-
+unsigned char *get_forward()
+{
+    return forward;
+}
 
 int get_clexeme_len()
 {
@@ -135,15 +144,16 @@ void buffer_init()
 
 unsigned char advance(int is_oom)
 {
-    
     static int been_called = 0;
 
     if (clexeme_len >= MAXLEX){
 
+        /*  CURRENTLY NOT WORKING!1! TODO!! */
         if (!is_oom){
             return OOM;
         }
     } else {
+        colno++;
         clexeme_len++;
     }
     
@@ -153,7 +163,17 @@ unsigned char advance(int is_oom)
         return *forward;
     }
 
+    /* 
+     *  clexeme_len will be 1 only if it is a new lexeme, where forward == to clexeme
+     *  We return *forward (first char in lexeme) and then on second iteration return *(forward + 1)
+     */
+
     if (clexeme_len == 1){
+        if (*forward == '\n'){
+            pcolno = colno;
+            colno = 1;
+            lineno++, clexeme_lines++;
+        }
         if (NO_MORE_CHARS()){
             was_eoi = 1;
         }
@@ -165,8 +185,10 @@ unsigned char advance(int is_oom)
     }
 
     if (*forward == '\n'){
+        pcolno = colno;
+        colno = 1;
         lineno++, clexeme_lines++;
-    }
+    }    
     
     if (NO_MORE_CHARS()){
         was_eoi = 1;
@@ -178,16 +200,17 @@ unsigned char advance(int is_oom)
 
 int retract()
 {
-    if (*forward == '\n'){
-        clexeme_lines--, lineno--;
-    }
-
 
     if (clexeme_len >= 1){
         if (forward > clexeme){
+            if (*forward == '\n'){
+                colno = pcolno;
+                clexeme_lines--, lineno--;
+            }
             --forward;
         }
-        clexeme_len--;
+        --colno;
+        --clexeme_len;
     }
 
     return *forward;
@@ -197,6 +220,7 @@ int retract()
 /* discard all forwarding */
 void retract_lexeme()
 {
+    colno -= clexeme_len;
     clexeme_len = 0;
     forward = clexeme;
 }
@@ -209,6 +233,7 @@ void discard_lexeme()
         return;
     }
 
+    colno -= (clexeme_len + plexeme_len);
     clexeme = plexeme;
     forward = clexeme;
     clexeme_len = 0;
@@ -218,6 +243,7 @@ int retract_nchars(int count)
 {
     while(--count > 0){
         if (forward > clexeme){
+            colno--;
             forward--;
         } else {
             break;

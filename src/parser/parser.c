@@ -15,6 +15,9 @@
 
 */
 
+int was_parsing_error = 0;
+
+
 static void move_next_statement()
 {
     while (ctoken.ttype != NL && ctoken.ttype != TEOI){
@@ -29,7 +32,6 @@ static int syntes_master(Token ipv4_t)
         return PARSE_ERR;
     }
 
-    printf("lexeme: %s\n", ipv4_t.lexeme);
     if (check_ipv4(ipv4_t.lexeme)){
         Master_arg.ipv4.ipv4 = src_ipv4to_int(ipv4_t.lexeme);
     }
@@ -62,9 +64,10 @@ static int parse_master()
     } else {
         ERR_PRINTF(ctoken.ttype, ctoken.lexeme, "UNEXPECTED TOKEN. LOOKING FOR <COLON>. GIVED: ");
     }
+
+    was_parsing_error = 1;
     return PARSE_ERR;
 }
-
 
 static int parse_domain_list()
 {
@@ -75,10 +78,10 @@ static int parse_domain_list()
     next = &BlackList_arg;
 
     while (ctoken.ttype == DOMAIN){
-        next->domain.domain_lexeme = malloc(ctoken.tlen);
+        next->domain.domain_lexeme = calloc(ctoken.tlen, 1);
         strncpy(next->domain.domain_lexeme, ctoken.lexeme, ctoken.tlen);
         next->domain.domain_size = ctoken.tlen;
-        next->next = malloc(sizeof(BlackList));
+        next->next = calloc(sizeof(BlackList), 1);
         next = next->next;
         
         #if DEBUG
@@ -90,10 +93,28 @@ static int parse_domain_list()
 
     next->next = NULL;
     
-    retract_token();
-    discard_lexeme();
+/*     retract_token();
+    discard_lexeme(); */
 }
 
+static int clear_Ban_arg()
+{
+    BlackList *p;    
+
+    p = &BlackList_arg;
+
+    if (p->next != NULL){
+        free(p->domain.domain_lexeme);
+        p = p->next;
+    }
+
+    for (; p->next != NULL; p = p->next){
+        free(p->domain.domain_lexeme);
+        free(p);
+    }
+
+    BlackList_arg.next = NULL;
+}
 
 static int parse_ban()
 {
@@ -103,7 +124,7 @@ static int parse_ban()
         get_token();
         if (ctoken.ttype == LB){
             parse_domain_list();
-            get_token();
+            /*  get_token(); */
             if (ctoken.ttype == RB){
                 get_token();
                 if (ctoken.ttype == NL || ctoken.ttype == TEOI ){
@@ -123,6 +144,8 @@ static int parse_ban()
     }   else {
         ERR_PRINTF(ctoken.ttype, ctoken.lexeme, "UNEXPECTED TOKEN. LOOKING FOR <COLON>. GIVED: ");
     }
+    
+    was_parsing_error = 1;
     return PARSE_ERR;
 }
 
@@ -134,9 +157,13 @@ static int parse_id(Token token)
     }
 
     if (!strncmp(token.lexeme, "BAN", token.tlen)){
+        if (!(BlackList_arg.next == NULL && BlackList_arg.domain.domain_size == 0)){
+            clear_Ban_arg();
+        }
         return parse_ban();
     }
 
+    was_parsing_error = 1;
     ERR_PRINTF(token.ttype, token.lexeme, "INVALID KEYWORD");
 }
 
@@ -145,13 +172,13 @@ static int parse_stmt()
     get_token();
     if (ctoken.ttype  == ID){
         parse_id(ctoken);
-        move_next_statement();
     } else if (ctoken.ttype == NL || ctoken.ttype == TEOI) {
         return PARSE_OK;
     } else {
         ERR_PRINTF(ctoken.ttype, ctoken.lexeme, "shoud be ID, got:");
-        return PARSE_ERR;
+        was_parsing_error = 1;
     }
+    move_next_statement();
 }
 
 int main_parser()
@@ -159,11 +186,18 @@ int main_parser()
     while(ctoken.ttype != TEOI){
         parse_stmt();
     }
-}
+    
+    if (!was_parsing_error){
+        unsigned char s[64];
+        int_ipv4to_src(Master_arg.ipv4.ipv4, s);
+        printf("CONFIG SUCCESSFULLY PARSED\n"
+               "MASTER: %s\n", s);
+        
+        BlackList *p;
+        for (p = &BlackList_arg; p->next != NULL; p = p->next){
+            printf("BAN: %s\tlen: %d\n", p->domain.domain_lexeme, p->domain.domain_size);
+        }
+    }
 
-/* int main(int argc, char *argv[])
-{
-    inpfile = open_newfile("config.txt");
-    main_parser();
-    return 0;
-} */
+    return was_parsing_error;
+}

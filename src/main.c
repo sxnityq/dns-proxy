@@ -275,7 +275,14 @@ int main(int argc, char *argv[]){
 
     inpfile = open_newfile("config.txt");
     
-    main_parser();
+    Master_arg.ipv4.ipv4 = src_ipv4to_int("8.8.8.8");
+    BlackList_arg.next = NULL;
+    BlackList_arg.domain.domain_lexeme = NULL;
+    BlackList_arg.domain.domain_size = 0;
+    
+    if ( main_parser() ){
+        exit(1);
+    }
     
     init_q_head();      // queue_head = NULL;
     sockfd = init_connection();
